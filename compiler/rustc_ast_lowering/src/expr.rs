@@ -318,6 +318,22 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         rest,
                     )
                 }
+                ExprKind::InferStruct(ise) => {
+                    let rest = match &ise.rest {
+                        StructRest::Base(e) => Some(self.lower_expr(e)),
+                        StructRest::Rest(sp) => {
+                            let guar =
+                                self.tcx.sess.emit_err(BaseExpressionDoubleDot { span: *sp });
+                            Some(&*self.arena.alloc(self.expr_err(*sp, guar)))
+                        }
+                        StructRest::None => None,
+                    };
+                    hir::ExprKind::InferStruct(
+                        self.arena
+                            .alloc_from_iter(ise.fields.iter().map(|x| self.lower_expr_field(x))),
+                        rest,
+                    )
+                }
                 ExprKind::Gen(capture_clause, block, GenBlockKind::Gen) => self.make_gen_expr(
                     *capture_clause,
                     e.id,

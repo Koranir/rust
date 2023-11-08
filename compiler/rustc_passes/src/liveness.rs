@@ -468,6 +468,7 @@ impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
             | hir::ExprKind::Assign(..)
             | hir::ExprKind::AssignOp(..)
             | hir::ExprKind::Struct(..)
+            | hir::ExprKind::InferStruct(..)
             | hir::ExprKind::Repeat(..)
             | hir::ExprKind::InlineAsm(..)
             | hir::ExprKind::OffsetOf(..)
@@ -1029,7 +1030,8 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
             // Uninteresting cases: just propagate in rev exec order
             hir::ExprKind::Array(ref exprs) => self.propagate_through_exprs(exprs, succ),
 
-            hir::ExprKind::Struct(_, ref fields, ref with_expr) => {
+            hir::ExprKind::Struct(_, ref fields, ref with_expr)
+            | hir::ExprKind::InferStruct(ref fields, ref with_expr) => {
                 let succ = self.propagate_through_opt_expr(with_expr.as_deref(), succ);
                 fields
                     .iter()
@@ -1422,6 +1424,7 @@ fn check_expr<'tcx>(this: &mut Liveness<'_, 'tcx>, expr: &'tcx Expr<'tcx>) {
         | hir::ExprKind::AddrOf(..)
         | hir::ExprKind::OffsetOf(..)
         | hir::ExprKind::Struct(..)
+        | hir::ExprKind::InferStruct(..)
         | hir::ExprKind::Repeat(..)
         | hir::ExprKind::Closure { .. }
         | hir::ExprKind::Path(_)

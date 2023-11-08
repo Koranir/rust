@@ -647,7 +647,7 @@ parse_question_mark_in_type = invalid `?` in type
     .label = `?` is only allowed on expressions, not types
     .suggestion = if you meant to express that the type might not contain a value, use the `Option` wrapper type
 
-parse_recover_import_as_use = expected item, found {$token_name}
+parse_recover_import_as_use = expected item, found {$token_name} @ parse::messages.ftl
     .suggestion = items are imported using the `use` keyword
 
 parse_ref_mut_order_incorrect = the order of `mut` and `ref` is incorrect

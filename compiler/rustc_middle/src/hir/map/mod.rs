@@ -844,7 +844,7 @@ impl<'hir> Map<'hir> {
     pub fn expect_item(self, id: LocalDefId) -> &'hir Item<'hir> {
         match self.tcx.hir_owner(OwnerId { def_id: id }) {
             Some(Owner { node: OwnerNode::Item(item), .. }) => item,
-            _ => bug!("expected item, found {}", self.node_to_string(HirId::make_owner(id))),
+            _ => bug!("expected item, found {} @ hir::map:847", self.node_to_string(HirId::make_owner(id))),
         }
     }
 

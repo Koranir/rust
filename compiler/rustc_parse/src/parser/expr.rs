@@ -1377,6 +1377,11 @@ impl<'a> Parser<'a> {
                 this.parse_expr_builtin()
             } else if this.check_path() {
                 this.parse_expr_path_start()
+            } else if this.check_infer() {
+                let a = this.parse_expr_infer_start();
+                let b = &**a.as_ref().unwrap();
+                eprintln!("expr: {:#?}", pprust::expr_to_string(b));
+                a
             } else if this.check_keyword(kw::Move)
                 || this.check_keyword(kw::Static)
                 || this.check_const_closure()
@@ -1572,6 +1577,19 @@ impl<'a> Parser<'a> {
 
         let expr = self.mk_expr(span, kind);
         self.maybe_recover_from_bad_qpath(expr)
+    }
+
+    fn parse_expr_infer_start(&mut self) -> PResult<'a, P<Expr>> {
+        let lo = self.token.span;
+        self.bump();
+        self.expect(&token::OpenDelim(Delimiter::Brace))?;
+        
+        self.parse_inferred_struct_fields(lo, true).map(|(fields, rest)| {
+            self.mk_expr(
+                lo.shrink_to_lo().to(self.token.span.shrink_to_hi()),
+                ExprKind::InferStruct(P(ast::InferStructExpr { fields, rest }))
+            )
+        })
     }
 
     /// Parse `'label: $expr`. The label is already parsed.
@@ -1989,28 +2007,30 @@ impl<'a> Parser<'a> {
     fn recover_after_dot(&mut self) -> Option<Token> {
         let mut recovered = None;
         if self.token == token::Dot {
-            // Attempt to recover `.4` as `0.4`. We don't currently have any syntax where
-            // dot would follow an optional literal, so we do this unconditionally.
             recovered = self.look_ahead(1, |next_token| {
-                if let token::Literal(token::Lit { kind: token::Integer, symbol, suffix }) =
-                    next_token.kind
-                {
-                    // If this integer looks like a float, then recover as such.
-                    //
-                    // We will never encounter the exponent part of a floating
-                    // point literal here, since there's no use of the exponent
-                    // syntax that also constitutes a valid integer, so we need
-                    // not check for that.
-                    if suffix.map_or(true, |s| s == sym::f32 || s == sym::f64)
-                        && symbol.as_str().chars().all(|c| c.is_numeric() || c == '_')
-                        && self.token.span.hi() == next_token.span.lo()
-                    {
-                        let s = String::from("0.") + symbol.as_str();
-                        let kind = TokenKind::lit(token::Float, Symbol::intern(&s), suffix);
-                        return Some(Token::new(kind, self.token.span.to(next_token.span)));
+                // Attempt to recover `.4` as `0.4`. We don't currently have any syntax where
+                // dot would follow an optional literal, so we do this unconditionally.
+                match next_token.kind {
+                    TokenKind::Literal(token::Lit { kind: token::Integer, symbol, suffix }) => {
+                        // If this integer looks like a float, then recover as such.
+                        //
+                        // We will never encounter the exponent part of a floating
+                        // point literal here, since there's no use of the exponent
+                        // syntax that also constitutes a valid integer, so we need
+                        // not check for that.
+                        if suffix.map_or(true, |s| s == sym::f32 || s == sym::f64)
+                            && symbol.as_str().chars().all(|c| c.is_numeric() || c == '_')
+                            && self.token.span.hi() == next_token.span.lo()
+                        {
+                            let s = String::from("0.") + symbol.as_str();
+                            let kind = TokenKind::lit(token::Float, Symbol::intern(&s), suffix);
+                            Some(Token::new(kind, self.token.span.to(next_token.span)))
+                        } else {
+                            None
+                        }
                     }
+                    _ => None
                 }
-                None
             });
             if let Some(token) = &recovered {
                 self.bump();
@@ -3266,6 +3286,109 @@ impl<'a> Parser<'a> {
         Ok((fields, base, recover_async))
     }
 
+    pub(super) fn parse_inferred_struct_fields(
+        &mut self,
+        dot: Span,
+        recover: bool,
+    ) -> PResult<'a, (ThinVec<ExprField>, ast::StructRest)> {
+        let mut fields = ThinVec::new();
+        let mut base = ast::StructRest::None;
+        let in_if_guard = self.restrictions.contains(Restrictions::IN_IF_GUARD);
+
+        eprintln!("Working on it...");
+
+        while self.token != token::CloseDelim(Delimiter::Brace) {
+            if self.eat(&token::DotDot) || self.recover_struct_field_dots(Delimiter::Brace) {
+                let exp_span = self.prev_token.span;
+                if self.check(&token::CloseDelim(Delimiter::Brace)) {
+                    base = ast::StructRest::Rest(self.prev_token.span.shrink_to_hi());
+                    break;
+                }
+                match self.parse_expr() {
+                    Ok(e) => base = ast::StructRest::Base(e),
+                    Err(mut e) if recover => {
+                        e.emit();
+                        self.recover_stmt();
+                    }
+                    Err(e) => return Err(e),
+                }
+                self.recover_struct_comma_after_dotdot(exp_span);
+                break;
+            }
+
+            let recovery_field = self.find_struct_error_after_field_looking_code();
+            let parsed_field = match self.parse_expr_field() {
+                Ok(f) => Some(f),
+                Err(mut e) => {
+                    e.span_label(dot, "while parsing this struct");
+
+                    if let Some((ident, _)) = self.token.ident()
+                        && !self.token.is_reserved_ident()
+                        && self.look_ahead(1, |t| {
+                            AssocOp::from_token(&t).is_some()
+                                || matches!(t.kind, token::OpenDelim(_))
+                                || t.kind == token::Dot
+                        })
+                    {
+                        // Looks like they tried to write a shorthand, complex expression.
+                        e.span_suggestion_verbose(
+                            self.token.span.shrink_to_lo(),
+                            "try naming a field",
+                            &format!("{ident}: ",),
+                            Applicability::MaybeIncorrect,
+                        );
+                    }
+                    if in_if_guard || !recover {
+                        return Err(e);
+                    }
+
+                    e.emit();
+
+                    if self.token != token::Comma {
+                        self.recover_stmt_(SemiColonMode::Comma, BlockMode::Ignore);
+                        if self.token != token::Comma {
+                            break;
+                        }
+                    }
+
+                    None
+                }
+            };
+
+            let is_shorthand = parsed_field.as_ref().is_some_and(|f| f.is_shorthand);
+            self.check_or_expected(!is_shorthand, TokenType::Token(token::Colon));
+
+            match self.expect_one_of(&[token::Comma], &[token::CloseDelim(Delimiter::Brace)]) {
+                Ok(_) => {
+                    if let Some(f) = parsed_field.or(recovery_field) {
+                        // Only include the field if there's no parse error for the field name.
+                        fields.push(f);
+                    }
+                }
+                Err(mut e) => {
+                    e.span_label(dot, "while parsing this struct");
+                    if let Some(f) = recovery_field {
+                        fields.push(f);
+                        e.span_suggestion(
+                            self.prev_token.span.shrink_to_hi(),
+                            "try adding a comma",
+                            ",",
+                            Applicability::MachineApplicable,
+                        );
+                    }
+                    if !recover {
+                        return Err(e);
+                    }
+                    e.emit();
+                    self.recover_stmt_(SemiColonMode::Comma, BlockMode::Ignore);
+                    self.eat(&token::Comma);
+                }
+            }
+        }
+        self.bump();
+        Ok((fields, base))
+    }
+
     /// Precondition: already parsed the '{'.
     pub(super) fn parse_expr_struct(
         &mut self,
@@ -3620,6 +3743,7 @@ impl MutVisitor for CondChecker<'_> {
             | ExprKind::OffsetOf(_, _)
             | ExprKind::MacCall(_)
             | ExprKind::Struct(_)
+            | ExprKind::InferStruct(_)
             | ExprKind::Repeat(_, _)
             | ExprKind::Yield(_)
             | ExprKind::Yeet(_)

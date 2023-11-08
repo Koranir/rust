@@ -347,6 +347,9 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             ExprKind::Struct(qpath, fields, ref base_expr) => {
                 self.check_expr_struct(expr, expected, qpath, fields, base_expr)
             }
+            ExprKind::InferStruct(fields, ref base_expr) => {
+                self.check_expr_infer_struct(expr, expected, fields, base_expr)
+            }
             ExprKind::Field(base, field) => self.check_field(expr, &base, field, expected),
             ExprKind::Index(base, idx, brackets_span) => {
                 self.check_expr_index(base, idx, expr, brackets_span)
@@ -1640,6 +1643,24 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         adt_ty
     }
 
+    fn check_expr_infer_struct(
+        &self,
+        expr: &hir::Expr<'_>,
+        expected: Expectation<'tcx>,
+        _fields: &'tcx [hir::ExprField<'tcx>],
+        _base_expr: &'tcx Option<&'tcx hir::Expr<'tcx>>,
+    ) -> Ty<'tcx> {
+        let cty = expected.coercion_target_type(self, expr.span);
+
+        self.write_ty(expr.hir_id, cty);
+
+        eprintln!("{} @ {:?}", cty.to_string(), expr.hir_id);
+
+        // self.check_expr_struct_fields(cty, expected, expr, expr.span, , _fields, _base_expr);
+        
+        cty
+    }
+
     fn check_expr_struct_fields(
         &self,
         adt_ty: Ty<'tcx>,
@@ -1739,7 +1760,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             if ast_fields.len() != 1 {
                 struct_span_err!(
                     tcx.sess,
-                    span,
+                    span,variant
                     E0784,
                     "union expressions should have exactly one field",
                 )

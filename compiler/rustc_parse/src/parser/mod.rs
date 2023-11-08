@@ -640,6 +640,11 @@ impl<'a> Parser<'a> {
         self.check_or_expected(self.token.is_path_start(), TokenType::Path)
     }
 
+    fn check_infer(&mut self) -> bool {
+        self.check_or_expected(self.token == token::Dot, TokenType::Token(TokenKind::Dot))
+            && self.look_ahead(1, |t| t == &token::OpenDelim(Delimiter::Brace))
+    }
+
     fn check_type(&mut self) -> bool {
         self.check_or_expected(self.token.can_begin_type(), TokenType::Type)
     }

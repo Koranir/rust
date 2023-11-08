@@ -154,7 +154,7 @@ pub fn expand_include<'cx>(
                     Ok(None) => {
                         if self.p.token != token::Eof {
                             let token = pprust::token_to_string(&self.p.token);
-                            let msg = format!("expected item, found `{token}`");
+                            let msg = format!("expected item, found `{token}` @ builtin_macros::source_utils:157");
                             self.p.struct_span_err(self.p.token.span, msg).emit();
                         }
 
