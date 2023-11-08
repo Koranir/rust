@@ -1697,7 +1697,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             for (_, parent) in tcx.hir().parent_iter(expr.hir_id).take(5) {
                 if let Node::Expr(parent_expr) = parent {
                     let lang_item = match parent_expr.kind {
-                        ExprKind::Struct(ref qpath, _, _) => match **qpath {
+                        ExprKind::Struct(hir::LazyStruct::Finalized(ref qpath, _, _)) => match **qpath {
                             QPath::LangItem(LangItem::Range, ..) => Some(LangItem::Range),
                             QPath::LangItem(LangItem::RangeTo, ..) => Some(LangItem::RangeTo),
                             QPath::LangItem(LangItem::RangeToInclusive, ..) => {
@@ -1720,7 +1720,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     }
 
                     let span_included = match parent_expr.kind {
-                        hir::ExprKind::Struct(_, eps, _) => {
+                        hir::ExprKind::Struct(hir::LazyStruct::Finalized(_, eps, _)) => {
                             eps.len() > 0 && eps.last().is_some_and(|ep| ep.span.contains(span))
                         }
                         // `..=` desugars into `::std::ops::RangeInclusive::new(...)`.

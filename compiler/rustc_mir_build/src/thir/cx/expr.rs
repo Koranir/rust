@@ -511,7 +511,7 @@ impl<'tcx> Cx<'tcx> {
                 }
             }
 
-            hir::ExprKind::Struct(ref qpath, ref fields, ref base) => match expr_ty.kind() {
+            hir::ExprKind::Struct(hir::LazyStruct::Finalized(ref qpath, ref fields, ref base)) => match expr_ty.kind() {
                 ty::Adt(adt, args) => match adt.adt_kind() {
                     AdtKind::Struct | AdtKind::Union => {
                         let user_provided_types = self.typeck_results().user_provided_types();
@@ -564,35 +564,7 @@ impl<'tcx> Cx<'tcx> {
                 }
             },
 
-            hir::ExprKind::InferStruct(ref fields, ref base) => match expr_ty.kind() {
-                ty::Adt(adt, args) => match adt.adt_kind() {
-                    AdtKind::Struct | AdtKind::Union => {
-                        let user_provided_types = self.typeck_results().user_provided_types();
-                        let user_ty = user_provided_types.get(expr.hir_id).copied().map(Box::new);
-                        debug!("make_mirror_unadjusted: (struct/union) user_ty={:?}", user_ty);
-                        ExprKind::Adt(Box::new(AdtExpr {
-                            adt_def: *adt,
-                            variant_index: FIRST_VARIANT,
-                            args,
-                            user_ty,
-                            fields: self.field_refs(fields),
-                            base: base.map(|base| FruInfo {
-                                base: self.mirror_expr(base),
-                                field_types: self.typeck_results().fru_field_types()[expr.hir_id]
-                                    .iter()
-                                    .copied()
-                                    .collect(),
-                            }),
-                        }))
-                    }
-                    AdtKind::Enum => {
-                        span_bug!(expr.span, "unexpected enum for struct literal")
-                    }
-                },
-                _ => {
-                    span_bug!(expr.span, "unexpected type for struct literal: {:?}", expr_ty);
-                }
-            },
+            hir::ExprKind::Struct(hir::LazyStruct::Inferred(..)) => panic!("Lazy was taken"),
 
             hir::ExprKind::Closure { .. } => {
                 let closure_ty = self.typeck_results().expr_ty(expr);

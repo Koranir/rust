@@ -1736,7 +1736,6 @@ impl Expr<'_> {
             ExprKind::InlineAsm(..) => ExprPrecedence::InlineAsm,
             ExprKind::OffsetOf(..) => ExprPrecedence::OffsetOf,
             ExprKind::Struct(..) => ExprPrecedence::Struct,
-            ExprKind::InferStruct(..) => ExprPrecedence::InferStruct,
             ExprKind::Repeat(..) => ExprPrecedence::Repeat,
             ExprKind::Yield(..) => ExprPrecedence::Yield,
             ExprKind::Err(_) => ExprPrecedence::Err,
@@ -1781,7 +1780,6 @@ impl Expr<'_> {
             | ExprKind::Call(..)
             | ExprKind::MethodCall(..)
             | ExprKind::Struct(..)
-            | ExprKind::InferStruct(..)
             | ExprKind::Tup(..)
             | ExprKind::If(..)
             | ExprKind::Match(..)
@@ -1854,7 +1852,7 @@ impl Expr<'_> {
                 // them being used only for its side-effects.
                 base.can_have_side_effects()
             }
-            ExprKind::Struct(_, fields, init) | ExprKind::InferStruct(fields, init) => fields
+            ExprKind::Struct(LazyStruct::Finalized(_, fields, init)) | ExprKind::Struct(LazyStruct::Inferred(fields, init)) => fields
                 .iter()
                 .map(|field| field.expr)
                 .chain(init.into_iter())
@@ -1924,7 +1922,7 @@ impl Expr<'_> {
 pub fn is_range_literal(expr: &Expr<'_>) -> bool {
     match expr.kind {
         // All built-in range literals but `..=` and `..` desugar to `Struct`s.
-        ExprKind::Struct(ref qpath, _, _) => matches!(
+        ExprKind::Struct(LazyStruct::Finalized(ref qpath, _, _)) => matches!(
             **qpath,
             QPath::LangItem(
                 LangItem::Range
@@ -1943,6 +1941,12 @@ pub fn is_range_literal(expr: &Expr<'_>) -> bool {
 
         _ => false,
     }
+}
+
+#[derive(Debug, Clone, Copy, HashStable_Generic)]
+pub enum LazyStruct<'hir> {
+    Finalized(&'hir QPath<'hir>, &'hir [ExprField<'hir>], Option<&'hir Expr<'hir>>),
+    Inferred(&'hir [ExprField<'hir>], Option<&'hir Expr<'hir>>)
 }
 
 #[derive(Debug, Clone, Copy, HashStable_Generic)]
@@ -2058,9 +2062,7 @@ pub enum ExprKind<'hir> {
     ///
     /// E.g., `Foo {x: 1, y: 2}`, or `Foo {x: 1, .. base}`,
     /// where `base` is the `Option<Expr>`.
-    Struct(&'hir QPath<'hir>, &'hir [ExprField<'hir>], Option<&'hir Expr<'hir>>),
-
-    InferStruct(&'hir [ExprField<'hir>], Option<&'hir Expr<'hir>>),
+    Struct(LazyStruct<'hir>),
 
     /// An array literal constructed from one repeated element.
     ///

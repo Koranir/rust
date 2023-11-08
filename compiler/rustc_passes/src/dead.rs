@@ -461,7 +461,7 @@ impl<'tcx> Visitor<'tcx> for MarkSymbolVisitor<'tcx> {
             hir::ExprKind::Field(ref lhs, ..) => {
                 self.handle_field_access(&lhs, expr.hir_id);
             }
-            hir::ExprKind::Struct(ref qpath, ref fields, _) => {
+            hir::ExprKind::Struct(hir::LazyStruct::Finalized(ref qpath, ref fields, _)) => {
                 let res = self.typeck_results().qpath_res(qpath, expr.hir_id);
                 self.handle_res(res);
                 if let ty::Adt(adt, _) = self.typeck_results().expr_ty(expr).kind() {

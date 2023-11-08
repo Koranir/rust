@@ -304,7 +304,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         }
                         StructRest::None => None,
                     };
-                    hir::ExprKind::Struct(
+                    hir::ExprKind::Struct(hir::LazyStruct::Finalized(
                         self.arena.alloc(self.lower_qpath(
                             e.id,
                             &se.qself,
@@ -316,7 +316,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         self.arena
                             .alloc_from_iter(se.fields.iter().map(|x| self.lower_expr_field(x))),
                         rest,
-                    )
+                    ))
                 }
                 ExprKind::InferStruct(ise) => {
                     let rest = match &ise.rest {
@@ -328,11 +328,11 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         }
                         StructRest::None => None,
                     };
-                    hir::ExprKind::InferStruct(
+                    hir::ExprKind::Struct(hir::LazyStruct::Inferred(
                         self.arena
                             .alloc_from_iter(ise.fields.iter().map(|x| self.lower_expr_field(x))),
                         rest,
-                    )
+                    ))
                 }
                 ExprKind::Gen(capture_clause, block, GenBlockKind::Gen) => self.make_gen_expr(
                     *capture_clause,
@@ -1434,11 +1434,11 @@ impl<'hir> LoweringContext<'_, 'hir> {
             ),
         );
 
-        hir::ExprKind::Struct(
+        hir::ExprKind::Struct(hir::LazyStruct::Finalized(
             self.arena.alloc(hir::QPath::LangItem(lang_item, self.lower_span(span), None)),
             fields,
             None,
-        )
+        ))
     }
 
     fn lower_label(&self, opt_label: Option<Label>) -> Option<Label> {

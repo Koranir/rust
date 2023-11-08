@@ -1051,7 +1051,7 @@ impl<'tcx> Visitor<'tcx> for NamePrivacyVisitor<'tcx> {
     }
 
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
-        if let hir::ExprKind::Struct(qpath, fields, ref base) = expr.kind {
+        if let hir::ExprKind::Struct(hir::LazyStruct::Finalized(qpath, fields, ref base)) = expr.kind {
             let res = self.typeck_results().qpath_res(qpath, expr.hir_id);
             let adt = self.typeck_results().expr_ty(expr).ty_adt_def().unwrap();
             let variant = adt.variant_of_res(res);

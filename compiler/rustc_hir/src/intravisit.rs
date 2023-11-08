@@ -703,14 +703,13 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expression: &'v Expr<'v>) 
             visitor.visit_expr(element);
             visitor.visit_array_length(count)
         }
-        ExprKind::Struct(ref qpath, fields, ref optional_base) => {
+        ExprKind::Struct(LazyStruct::Finalized(ref qpath, fields, ref optional_base)) => {
             visitor.visit_qpath(qpath, expression.hir_id, expression.span);
             walk_list!(visitor, visit_expr_field, fields);
             walk_list!(visitor, visit_expr, optional_base);
         }
-        ExprKind::InferStruct(fields, ref optional_base) => {
-            walk_list!(visitor, visit_expr_field, fields);
-            walk_list!(visitor, visit_expr, optional_base);
+        ExprKind::Struct(LazyStruct::Inferred(..)) => {
+            panic!("Walk called on unitialized lazy struct");
         }
         ExprKind::Tup(subexpressions) => {
             walk_list!(visitor, visit_expr, subexpressions);

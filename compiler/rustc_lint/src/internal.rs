@@ -172,7 +172,7 @@ impl<'tcx> LateLintPass<'tcx> for TyTyKind {
                         }
                         // Can't unify these two branches because qpath below is `&&` and above is `&`
                         // and `A | B` paths don't play well together with adjustments, apparently.
-                        Some(Node::Expr(Expr { kind: ExprKind::Struct(qpath, ..), .. })) => {
+                        Some(Node::Expr(Expr { kind: ExprKind::Struct(rustc_hir::LazyStruct::Finalized(qpath, ..)), .. })) => {
                             if let QPath::TypeRelative(qpath_ty, ..) = qpath
                                 && qpath_ty.hir_id == ty.hir_id
                             {

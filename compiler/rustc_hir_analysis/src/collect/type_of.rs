@@ -194,7 +194,7 @@ fn anon_const_type_of<'tcx>(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> Ty<'tcx> {
                 Node::Expr(&Expr {
                     kind:
                         ExprKind::Path(QPath::Resolved(_, path))
-                        | ExprKind::Struct(&QPath::Resolved(_, path), ..),
+                        | ExprKind::Struct(hir::LazyStruct::Finalized(&QPath::Resolved(_, path), ..)),
                     ..
                 }) => {
                     let body_owner = tcx.hir().enclosing_body_owner(hir_id);

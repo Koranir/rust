@@ -1346,7 +1346,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             return false;
         }
         match expr.kind {
-            ExprKind::Struct(QPath::LangItem(LangItem::Range, ..), [start, end], _) => {
+            ExprKind::Struct(hir::LazyStruct::Finalized(QPath::LangItem(LangItem::Range, ..), [start, end], _)) => {
                 err.span_suggestion_verbose(
                     start.span.shrink_to_hi().with_hi(end.span.lo()),
                     "remove the unnecessary `.` operator for a floating point literal",
@@ -1355,7 +1355,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 );
                 true
             }
-            ExprKind::Struct(QPath::LangItem(LangItem::RangeFrom, ..), [start], _) => {
+            ExprKind::Struct(hir::LazyStruct::Finalized(QPath::LangItem(LangItem::RangeFrom, ..), [start], _)) => {
                 err.span_suggestion_verbose(
                     expr.span.with_lo(start.span.hi()),
                     "remove the unnecessary `.` operator for a floating point literal",
@@ -1364,7 +1364,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 );
                 true
             }
-            ExprKind::Struct(QPath::LangItem(LangItem::RangeTo, ..), [end], _) => {
+            ExprKind::Struct(hir::LazyStruct::Finalized(QPath::LangItem(LangItem::RangeTo, ..), [end], _)) => {
                 err.span_suggestion_verbose(
                     expr.span.until(end.span),
                     "remove the unnecessary `.` operator and add an integer part for a floating point literal",
@@ -2965,7 +2965,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         if !hir::is_range_literal(expr) {
             return;
         }
-        let hir::ExprKind::Struct(hir::QPath::LangItem(LangItem::Range, ..), [start, end], _) =
+        let hir::ExprKind::Struct(hir::LazyStruct::Finalized(hir::QPath::LangItem(LangItem::Range, ..), [start, end], _)) =
             expr.kind
         else {
             return;

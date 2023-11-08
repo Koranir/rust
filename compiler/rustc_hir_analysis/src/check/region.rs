@@ -698,11 +698,12 @@ fn resolve_local<'tcx>(
                     },
                 );
             }
-            hir::ExprKind::Struct(_, fields, _) => {
+            hir::ExprKind::Struct(hir::LazyStruct::Finalized(_, fields, _)) => {
                 for field in fields {
                     record_rvalue_scope_if_borrow_expr(visitor, &field.expr, blk_id);
                 }
             }
+            hir::ExprKind::Struct(hir::LazyStruct::Inferred(..)) => panic!("lazy struct inf used"),
             hir::ExprKind::Array(subexprs) | hir::ExprKind::Tup(subexprs) => {
                 for subexpr in subexprs {
                     record_rvalue_scope_if_borrow_expr(visitor, &subexpr, blk_id);

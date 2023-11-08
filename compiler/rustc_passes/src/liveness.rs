@@ -468,7 +468,6 @@ impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
             | hir::ExprKind::Assign(..)
             | hir::ExprKind::AssignOp(..)
             | hir::ExprKind::Struct(..)
-            | hir::ExprKind::InferStruct(..)
             | hir::ExprKind::Repeat(..)
             | hir::ExprKind::InlineAsm(..)
             | hir::ExprKind::OffsetOf(..)
@@ -1030,14 +1029,14 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
             // Uninteresting cases: just propagate in rev exec order
             hir::ExprKind::Array(ref exprs) => self.propagate_through_exprs(exprs, succ),
 
-            hir::ExprKind::Struct(_, ref fields, ref with_expr)
-            | hir::ExprKind::InferStruct(ref fields, ref with_expr) => {
+            hir::ExprKind::Struct(hir::LazyStruct::Finalized(_, ref fields, ref with_expr)) => {
                 let succ = self.propagate_through_opt_expr(with_expr.as_deref(), succ);
                 fields
                     .iter()
                     .rev()
                     .fold(succ, |succ, field| self.propagate_through_expr(&field.expr, succ))
             }
+            hir::ExprKind::Struct(hir::LazyStruct::Inferred(..)) => panic!("lazy was used"),
 
             hir::ExprKind::Call(ref f, ref args) => {
                 let succ = self.check_is_ty_uninhabited(expr, succ);
@@ -1424,7 +1423,6 @@ fn check_expr<'tcx>(this: &mut Liveness<'_, 'tcx>, expr: &'tcx Expr<'tcx>) {
         | hir::ExprKind::AddrOf(..)
         | hir::ExprKind::OffsetOf(..)
         | hir::ExprKind::Struct(..)
-        | hir::ExprKind::InferStruct(..)
         | hir::ExprKind::Repeat(..)
         | hir::ExprKind::Closure { .. }
         | hir::ExprKind::Path(_)

@@ -378,7 +378,6 @@ impl<'a, 'tcx> MemCategorizationContext<'a, 'tcx> {
             | hir::ExprKind::Break(..)
             | hir::ExprKind::Continue(..)
             | hir::ExprKind::Struct(..)
-            | hir::ExprKind::InferStruct(..)
             | hir::ExprKind::Repeat(..)
             | hir::ExprKind::InlineAsm(..)
             | hir::ExprKind::OffsetOf(..)

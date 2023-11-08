@@ -180,7 +180,7 @@ fn lint_overflowing_range_endpoint<'tcx>(
     if !is_range_literal(struct_expr) {
         return false;
     };
-    let ExprKind::Struct(_, eps, _) = &struct_expr.kind else { return false };
+    let ExprKind::Struct(hir::LazyStruct::Finalized(_, eps, _)) = &struct_expr.kind else { return false };
     if eps.len() != 2 {
         return false;
     }
