@@ -1461,7 +1461,7 @@ impl<'a> Parser<'a> {
     }
 
     fn check_struct_infer(&mut self) -> bool {
-        self.check(&token::Dot)
+        self.check_keyword(kw::Underscore)
             && self.look_ahead(1, |t| {*t == token::OpenDelim(Delimiter::Brace)})
     }
 }

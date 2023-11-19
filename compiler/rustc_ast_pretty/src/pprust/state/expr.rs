@@ -186,7 +186,7 @@ impl<'a> State<'a> {
         fields: &[ast::ExprField],
         rest: &ast::StructRest,
     ) {
-        self.word(".{");
+        self.word("_{");
         let has_rest = match rest {
             ast::StructRest::Base(_) | ast::StructRest::Rest(_) => true,
             ast::StructRest::None => false,

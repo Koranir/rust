@@ -3309,7 +3309,7 @@ impl<'a> Parser<'a> {
         recover: bool,
     ) -> PResult<'a, P<Expr>> {
         let lo = self.token.span;
-        self.expect(&token::Dot)?;
+        self.expect_keyword(kw::Underscore)?;
         self.expect(&token::OpenDelim(Delimiter::Brace))?;
 
         let (fields, base, _) =

@@ -1096,7 +1096,7 @@ impl<'a> State<'a> {
         fields: &[hir::ExprField<'_>],
         wth: Option<&hir::Expr<'_>>,
     ) {
-        self.word(".{");
+        self.word("_{");
         self.commasep_cmnt(Consistent, fields, |s, field| s.print_expr_field(field), |f| f.span);
         if let Some(expr) = wth {
             self.ibox(INDENT_UNIT);
